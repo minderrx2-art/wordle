@@ -9,7 +9,7 @@ defmodule WordleWeb.MainPage do
     {:ok,
      assign(socket,
        answer: word,
-       alphabet: ?a..?z |> Enum.map(&<<&1>>),
+       alphabet: ~c"qwertyuiopasdfghjklzxcvbnm" |> Enum.map(&<<&1>>),
        feedback: [
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
@@ -17,6 +17,7 @@ defmodule WordleWeb.MainPage do
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}]
        ],
+       active_key: %{},
        current: "",
        current_i: 0
      )}
@@ -25,7 +26,16 @@ defmodule WordleWeb.MainPage do
   ## On-screen keyboard key_clicked
   def handle_event("key_clicked", %{"key" => key}, socket)
       when byte_size(socket.assigns.current) < 5 do
-    {:noreply, assign(socket, current: socket.assigns.current <> String.downcase(key))}
+    new_colour = if socket.assigns.active_key[key] == "", do: "", else: "bg-green-500"
+    updated_key = socket.assigns.active_key |> Map.put(key, new_colour)
+
+    Process.send_after(self(), {:reset_key, key}, 200)
+
+    {:noreply,
+     assign(socket,
+       current: socket.assigns.current <> String.downcase(key),
+       active_key: updated_key
+     )}
   end
 
   def handle_event("key_clicked", %{"key" => _key}, socket) do
@@ -34,6 +44,7 @@ defmodule WordleWeb.MainPage do
 
   ## On-screen keyboard special_clicked
   def handle_event("special_clicked", %{"special" => special}, socket) when special == "enter" do
+    new_colour = if socket.assigns.active_key[special] == "", do: "", else: "bg-green-500"
     handle_submit(socket, socket.assigns.current)
   end
 
@@ -48,13 +59,29 @@ defmodule WordleWeb.MainPage do
     handle_submit(socket, guess)
   end
 
-  ## Keyboard submit_guess
+  ## Keyboard update_guess
   def handle_event("update_guess", %{"guess" => guess}, socket) do
-    {:noreply, assign(socket, current: String.downcase(guess))}
+    last_character = String.last(guess)
+    new_colour = if socket.assigns.active_key[last_character] == "", do: "", else: "bg-green-500"
+
+    updated_key = socket.assigns.active_key |> Map.put(last_character, new_colour)
+
+    Process.send_after(self(), {:reset_key, last_character}, 200)
+
+    {:noreply,
+     assign(socket,
+       current: String.downcase(guess),
+       active_key: updated_key
+     )}
   end
 
   def handle_event("gain_focus", _params, socket) do
     {:noreply, socket}
+  end
+
+  def handle_info({:reset_key, key}, socket) do
+    updated_key = Map.delete(socket.assigns.active_key, key)
+    {:noreply, assign(socket, active_key: updated_key)}
   end
 
   defp color_class(:green), do: "text-green-500"
@@ -98,7 +125,7 @@ defmodule WordleWeb.MainPage do
       />
     </form>
     <div class="flex flex-col items-center w-full mt-5">
-      <.keyboard alphabet={@alphabet} />
+      <.keyboard alphabet={@alphabet} active_key={@active_key} />
     </div>
     """
   end
@@ -131,7 +158,7 @@ defmodule WordleWeb.MainPage do
   end
 
   defp keyboard(assigns) do
-    rows = Enum.chunk_every(assigns.alphabet, 13)
+    rows = Enum.chunk_every(assigns.alphabet, 10)
     assigns = assign(assigns, :rows, rows)
 
     ~H"""
@@ -141,7 +168,7 @@ defmodule WordleWeb.MainPage do
           :for={char <- row}
           phx-click="key_clicked"
           phx-value-key={char}
-          class="w-12 h-12 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded"
+          class={"w-12 h-12 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded #{Map.get(assigns.active_key,char, "")}"}
         >
           {char}
         </button>
