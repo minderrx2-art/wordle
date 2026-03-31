@@ -1,11 +1,21 @@
 defmodule Wordle.Game do
-  def get_word(length \\ 5) do
+  defp get_words do
     "/usr/share/dict/words"
     |> File.stream!()
     |> Stream.map(&String.trim/1)
+  end
+
+  def get_word(length \\ 5) do
+    get_words()
     |> Stream.filter(&(String.length(&1) / 1 == length))
     |> Stream.map(&String.downcase/1)
     |> Enum.random()
+  end
+
+  def check_word(word, length \\ 5) do
+    word in (get_words()
+             |> Stream.filter(&(String.length(&1) / 1 == length))
+             |> Stream.map(&String.downcase/1))
   end
 
   def feedback(answer, guess) do
