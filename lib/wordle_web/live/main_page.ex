@@ -1,6 +1,6 @@
 defmodule WordleWeb.MainPage do
   use WordleWeb, :live_view
-  @max_retries 6
+  @max_retries 7
 
   def mount(_params, _session, socket) do
     word = Wordle.Game.get_word()
@@ -11,6 +11,7 @@ defmodule WordleWeb.MainPage do
        answer: word,
        alphabet: ~c"qwertyuiopasdfghjklzxcvbnm" |> Enum.map(&<<&1>>),
        feedback: [
+         [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
          [{:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}, {:blank, ""}],
@@ -44,7 +45,6 @@ defmodule WordleWeb.MainPage do
 
   ## On-screen keyboard special_clicked
   def handle_event("special_clicked", %{"special" => special}, socket) when special == "enter" do
-    new_colour = if socket.assigns.active_key[special] == "", do: "", else: "bg-green-500"
     handle_submit(socket, socket.assigns.current)
   end
 
@@ -93,15 +93,23 @@ defmodule WordleWeb.MainPage do
        when byte_size(guess) == 5 and length(socket.assigns.feedback) != @max_retries do
     answer = socket.assigns.answer
     current_i = socket.assigns.current_i
-    feedback = Wordle.Game.feedback(answer, guess)
-    new_feedback = socket.assigns.feedback |> List.replace_at(current_i, feedback)
+    word_valid? = Wordle.Game.check_word(guess)
 
-    {:noreply,
-     assign(socket,
-       current: "",
-       current_i: socket.assigns.current_i + 1,
-       feedback: new_feedback
-     )}
+    case word_valid? do
+      true ->
+        feedback = Wordle.Game.feedback(answer, guess)
+        new_feedback = socket.assigns.feedback |> List.replace_at(current_i, feedback)
+
+        {:noreply,
+         assign(socket,
+           current: "",
+           current_i: socket.assigns.current_i + 1,
+           feedback: new_feedback
+         )}
+
+      _ ->
+        {:noreply, assign(socket, current: "")}
+    end
   end
 
   defp handle_submit(socket, _guess) do
@@ -139,13 +147,13 @@ defmodule WordleWeb.MainPage do
             <%= if index == @current_i do %>
               <%= for i <- 0..4 do %>
                 <% char = String.at(@current, i) %>
-                <div class="w-12 h-12 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded">
+                <div class="w-16 h-16 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded">
                   {char}
                 </div>
               <% end %>
             <% else %>
               <%= for {state, char} <- row do %>
-                <div class="w-12 h-12 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded">
+                <div class="w-16 h-16 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded">
                   <span class={"#{color_class(state)}"}>{char}</span>
                 </div>
               <% end %>
