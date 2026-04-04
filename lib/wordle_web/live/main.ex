@@ -1,5 +1,9 @@
-defmodule WordleWeb.MainPage do
+defmodule WordleWeb.Main do
   use WordleWeb, :live_view
+
+  import WordleWeb.Attempts
+  import WordleWeb.Keyboard
+
   @max_retries 7
 
   def mount(_params, _session, socket) do
@@ -80,16 +84,6 @@ defmodule WordleWeb.MainPage do
     {:noreply, socket}
   end
 
-  def handle_info({:reset_key, key}, socket) do
-    updated_key = Map.delete(socket.assigns.highlight, key)
-    {:noreply, assign(socket, highlight: updated_key)}
-  end
-
-  defp color_class(:green), do: "text-green-500"
-  defp color_class(:yellow), do: "text-yellow-500"
-  defp color_class(:gray), do: "text-gray-400"
-  defp color_class(_), do: ""
-
   defp handle_submit(socket, guess)
        when byte_size(guess) == 5 and length(socket.assigns.feedback) != @max_retries do
     answer = socket.assigns.answer
@@ -128,6 +122,11 @@ defmodule WordleWeb.MainPage do
     {:noreply, assign(socket, current: socket.assigns.current)}
   end
 
+  def handle_info({:reset_key, key}, socket) do
+    updated_key = Map.delete(socket.assigns.highlight, key)
+    {:noreply, assign(socket, highlight: updated_key)}
+  end
+
   def render(assigns) do
     ~H"""
     <h1 class="text-center p-5">Wordle with Elixir</h1>
@@ -146,63 +145,6 @@ defmodule WordleWeb.MainPage do
     </form>
     <div class="flex flex-col items-center w-full mt-5">
       <.keyboard alphabet={@alphabet} highlight={@highlight} correct_keys={@correct_keys} />
-    </div>
-    """
-  end
-
-  defp attempts(assigns) do
-    ~H"""
-    <div class="w-fit relative w-64 mx-auto z-1">
-      <div>
-        <%= for {row, index} <- Enum.with_index(@feedback) do %>
-          <div class="flex gap-2 mb-1">
-            <%= if index == @current_i do %>
-              <%= for i <- 0..4 do %>
-                <% char = String.at(@current, i) %>
-                <div class="w-16 h-16 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded">
-                  {char}
-                </div>
-              <% end %>
-            <% else %>
-              <%= for {state, char} <- row do %>
-                <div class="w-16 h-16 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded">
-                  <span class={"#{color_class(state)}"}>{char}</span>
-                </div>
-              <% end %>
-            <% end %>
-          </div>
-        <% end %>
-      </div>
-    </div>
-    """
-  end
-
-  defp keyboard(assigns) do
-    rows = Enum.chunk_every(assigns.alphabet, 10)
-    assigns = assign(assigns, :rows, rows)
-
-    ~H"""
-    <div class="flex flex-col gap-2 z-1">
-      <div :for={row <- @rows} class="flex gap-2">
-        <button
-          :for={char <- row}
-          phx-click="key_clicked"
-          phx-value-key={char}
-          class={"w-12 h-12 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded #{Map.get(assigns.correct_keys, char, false) || Map.get(assigns.highlight, char, "")}"}
-        >
-          {char}
-        </button>
-      </div>
-      <div class="flex gap-2 justify-end">
-        <button
-          :for={special_btn <- ["enter", "backspace"]}
-          phx-click="special_clicked"
-          phx-value-special={special_btn}
-          class="w-fit h-12 border-2 border-gray-300 flex items-center justify-center text-2xl font-bold uppercase rounded"
-        >
-          {special_btn}
-        </button>
-      </div>
     </div>
     """
   end
