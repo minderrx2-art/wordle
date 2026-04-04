@@ -6,7 +6,9 @@ defmodule WordleWeb.Attempts do
   defp color_class(:gray), do: "text-gray-400"
   defp color_class(_), do: ""
 
-  attr :alphabet, :list, required: true
+  attr :feedback, :list, required: false
+  attr :current, :string, required: false
+  attr :current_i, :integer, required: false
 
   def attempts(assigns) do
     ~H"""

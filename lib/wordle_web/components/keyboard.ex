@@ -2,6 +2,8 @@ defmodule WordleWeb.Keyboard do
   use Phoenix.Component
 
   attr :alphabet, :list, required: true
+  attr :highlight, :map, default: %{}
+  attr :correct_keys, :list, default: []
 
   def keyboard(assigns) do
     rows = Enum.chunk_every(assigns.alphabet, 10)

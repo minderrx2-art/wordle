@@ -30,33 +30,35 @@ defmodule WordleWeb.Main do
   end
 
   ## On-screen keyboard key_clicked
-  def handle_event("key_clicked", %{"key" => key}, socket)
-      when byte_size(socket.assigns.current) < 5 do
-    new_colour = if socket.assigns.highlight[key] == "", do: "", else: "bg-green-500"
-    updated_key = socket.assigns.highlight |> Map.put(key, new_colour)
+  def handle_event("key_clicked", %{"key" => key}, socket) do
+    cond do
+      byte_size(socket.assigns.current) < 5 ->
+        new_colour = if socket.assigns.highlight[key] == "", do: "", else: "bg-green-500"
+        updated_key = socket.assigns.highlight |> Map.put(key, new_colour)
 
-    Process.send_after(self(), {:reset_key, key}, 200)
+        Process.send_after(self(), {:reset_key, key}, 200)
 
-    {:noreply,
-     assign(socket,
-       current: socket.assigns.current <> String.downcase(key),
-       highlight: updated_key
-     )}
-  end
+        {:noreply,
+         assign(socket,
+           current: socket.assigns.current <> String.downcase(key),
+           highlight: updated_key
+         )}
 
-  def handle_event("key_clicked", %{"key" => _key}, socket) do
-    {:noreply, assign(socket, current: socket.assigns.current)}
+      true ->
+        {:noreply, assign(socket, current: socket.assigns.current)}
+    end
   end
 
   ## On-screen keyboard special_clicked
-  def handle_event("special_clicked", %{"special" => special}, socket) when special == "enter" do
-    handle_submit(socket, socket.assigns.current)
-  end
+  def handle_event("special_clicked", %{"special" => special}, socket) do
+    cond do
+      special == "enter" ->
+        handle_submit(socket, socket.assigns.current)
 
-  def handle_event("special_clicked", %{"special" => special}, socket)
-      when special == "backspace" do
-    {remaining, _last} = String.split_at(socket.assigns.current, -1)
-    {:noreply, assign(socket, current: remaining)}
+      special == "backspace" ->
+        {remaining, _last} = String.split_at(socket.assigns.current, -1)
+        {:noreply, assign(socket, current: remaining)}
+    end
   end
 
   ## Keyboard submit_guess
