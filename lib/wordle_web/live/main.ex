@@ -31,13 +31,12 @@ defmodule WordleWeb.Main do
 
   ## On-screen keyboard key_clicked
   def handle_event("key_clicked", %{"key" => key}, socket) do
+    new_colour = "bg-green-500"
+    updated_key = socket.assigns.highlight |> Map.put(key, new_colour)
+    Process.send_after(self(), {:reset_key, key}, 200)
+
     cond do
       byte_size(socket.assigns.current) < 5 ->
-        new_colour = if socket.assigns.highlight[key] == "", do: "", else: "bg-green-500"
-        updated_key = socket.assigns.highlight |> Map.put(key, new_colour)
-
-        Process.send_after(self(), {:reset_key, key}, 200)
-
         {:noreply,
          assign(socket,
            current: socket.assigns.current <> String.downcase(key),
@@ -45,7 +44,11 @@ defmodule WordleWeb.Main do
          )}
 
       true ->
-        {:noreply, assign(socket, current: socket.assigns.current)}
+        {:noreply,
+         assign(socket,
+           current: socket.assigns.current,
+           highlight: updated_key
+         )}
     end
   end
 
@@ -69,32 +72,54 @@ defmodule WordleWeb.Main do
   ## Keyboard update_guess
   def handle_event("update_guess", %{"guess" => guess}, socket) do
     last_character = String.last(guess)
-    new_colour = if socket.assigns.highlight[last_character] == "", do: "", else: "bg-green-500"
+    new_colour = "bg-green-500"
 
     updated_key = socket.assigns.highlight |> Map.put(last_character, new_colour)
 
     Process.send_after(self(), {:reset_key, last_character}, 200)
 
-    {:noreply,
-     assign(socket,
-       current: String.downcase(guess),
-       highlight: updated_key
-     )}
+    cond do
+      byte_size(socket.assigns.current) < 5 ->
+        {:noreply,
+         assign(socket,
+           current: String.downcase(guess),
+           highlight: updated_key
+         )}
+
+      byte_size(guess) < 5 ->
+        {:noreply,
+         assign(socket,
+           current: String.downcase(guess),
+           highlight: updated_key
+         )}
+
+      true ->
+        {:noreply,
+         assign(socket,
+           current: socket.assigns.current,
+           highlight: updated_key
+         )}
+    end
   end
 
   def handle_event("gain_focus", _params, socket) do
     {:noreply, socket}
   end
 
-  defp handle_submit(socket, guess)
-       when byte_size(guess) == 5 and length(socket.assigns.feedback) != @max_retries do
+  defp handle_submit(socket, _guess) when length(socket.assigns.feedback) != @max_retries do
     answer = socket.assigns.answer
     current_i = socket.assigns.current_i
-    word_valid? = Wordle.Game.check_word(guess)
+    current_word = socket.assigns.current
 
-    case word_valid? do
-      true ->
-        feedback = Wordle.Game.feedback(answer, guess)
+    already_present? = Wordle.Game.already_present?(socket.assigns.feedback, current_word)
+    word_valid? = Wordle.Game.check_word(current_word)
+
+    cond do
+      already_present? ->
+        {:noreply, assign(socket, current: "")}
+
+      word_valid? ->
+        feedback = Wordle.Game.feedback(answer, current_word)
         new_feedback = socket.assigns.feedback |> List.replace_at(current_i, feedback)
 
         correct_updated =
@@ -115,7 +140,7 @@ defmodule WordleWeb.Main do
            correct_keys: correct_updated
          )}
 
-      _ ->
+      true ->
         {:noreply, assign(socket, current: "")}
     end
   end
@@ -138,7 +163,6 @@ defmodule WordleWeb.Main do
         type="text"
         name="guess"
         value={@current}
-        maxlength="5"
         autofocus
         class="absolute inset-0 z-0 opacity-0 h-screen w-screen"
         phx-window-keydown="gain_focus"

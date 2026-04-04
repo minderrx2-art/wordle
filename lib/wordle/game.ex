@@ -32,4 +32,15 @@ defmodule Wordle.Game do
         end
     end)
   end
+
+  def already_present?(feedback, guess) do
+    reduced_feedback =
+      Enum.map(feedback, fn word ->
+        Enum.reduce(word, "", fn {_, char}, acc ->
+          acc <> char
+        end)
+      end)
+
+    guess in reduced_feedback
+  end
 end
